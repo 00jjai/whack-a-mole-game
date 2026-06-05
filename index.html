@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Whack-A-Mole Game</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -14,130 +13,364 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
+            font-family: sans-serif;
         }
         canvas {
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             border-radius: 4px;
+            cursor: none; /* Hides the default mouse cursor so we see the hammer */
         }
     </style>
 </head>
 <body>
 
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
     <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
         // GAME VARIABLES
         let gameState = "menu";
-        let maxAngle;
+        let mouseX = 0, mouseY = 0;
 
-        let moleAX = 200;
-        let moleAY = 200;
-        let currentMoleAY = 250;
-        let isMoleAAlive = true;
-        let timerA = 60;
+        let moleAX = 200, moleAY = 200, currentMoleAY = 250;
+        let isMoleAAlive = true, timerA = 60;
 
-        let moleBX = 100;
-        let moleBY = 150;
-        let currentMoleBY = 250;
-        let isMoleBAlive = true;
-        let timerB = 90;
+        let moleBX = 100, moleBY = 150, currentMoleBY = 250;
+        let isMoleBAlive = true, timerB = 90;
 
-        let moleSize = 45;
-        let score = 0;
-        let gameTimer = 30; 
-        let spawnSpeed = 60;
-        let hammerAngle = 0;
-        let hammerResetTimer = 0;
-        let effectTimer = 0;
-        let effectX = 0;
-        let effectY = 0;
-        let bubbleType = 0;
-        let totalMoles = 0;
-        let misses = 0;
+        let moleSize = 45, score = 0, gameTimer = 30; 
+        let spawnSpeed = 60, hammerAngle = 0, hammerResetTimer = 0;
+        let effectTimer = 0, effectX = 0, effectY = 0, bubbleType = 0;
+        let totalMoles = 0, misses = 0;
 
-        function setup() {
-            createCanvas(400, 400);
+        // HELPER DRAW FUNCTIONS TO REPLACE PROCESSING PIPELINE
+        function ellipse(x, y, w, h) {
+            ctx.beginPath();
+            ctx.ellipse(x, y, w/2, h/2, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
         }
 
-        // DRAWING FUNCTIONS
+        function rect(x, y, w, h, r = 0) {
+            ctx.beginPath();
+            if (r > 0) ctx.roundRect(x, y, w, h, r);
+            else ctx.rect(x, y, w, h);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function line(x1, y1, x2, y2) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
         function drawGrass(x, y) {
-            stroke(30, 110, 30);
-            strokeWeight(2);
+            ctx.strokeStyle = "rgb(30, 110, 30)";
+            ctx.lineWidth = 2;
             line(x, y, x - 4, y - 10);
             line(x, y, x, y - 14);
             line(x, y, x + 4, y - 10);
-            noStroke();
         }
 
         function drawHole(cx, cy) {
-            fill(107, 61, 20, 130);
-            ellipse(cx, cy + 2, 92, 48);
-            fill(139, 94, 42);
-            ellipse(cx, cy, 88, 44);
-            fill(74, 42, 10);
-            ellipse(cx, cy, 76, 36);
-            fill(26, 14, 4);
-            ellipse(cx, cy + 1, 66, 28);
-            fill(13, 6, 4);
-            ellipse(cx, cy, 56, 20);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "transparent";
+            ctx.fillStyle = "rgba(107, 61, 20, 0.5)"; ellipse(cx, cy + 2, 92, 48);
+            ctx.fillStyle = "rgb(139, 94, 42)"; ellipse(cx, cy, 88, 44);
+            ctx.fillStyle = "rgb(74, 42, 10)"; ellipse(cx, cy, 76, 36);
+            ctx.fillStyle = "rgb(26, 14, 4)"; ellipse(cx, cy + 1, 66, 28);
+            ctx.fillStyle = "rgb(13, 6, 4)"; ellipse(cx, cy, 56, 20);
         }
 
         function drawMole(x, y) {
-            fill(139, 69, 19);
+            ctx.strokeStyle = "transparent";
+            ctx.fillStyle = "rgb(139, 69, 19)";
             ellipse(x, y, moleSize, moleSize);
             ellipse(x - 15, y - 15, 12, 12);
             ellipse(x + 15, y - 15, 12, 12);
-            fill(255, 150, 150);
+            ctx.fillStyle = "rgb(255, 150, 150)";
             ellipse(x - 15, y - 15, 6, 6);
             ellipse(x + 15, y - 15, 6, 6);
-            fill(0, 0, 0);
+            ctx.fillStyle = "rgb(0, 0, 0)";
             ellipse(x - 8, y - 4, 6, 6);
             ellipse(x + 8, y - 4, 6, 6);
-            fill(255, 255, 255);
+            ctx.fillStyle = "rgb(255, 255, 255)";
             ellipse(x - 9, y - 5, 2, 2);
             ellipse(x + 7, y - 5, 2, 2);
-            fill(240, 170, 170);
+            ctx.fillStyle = "rgb(240, 170, 170)";
             ellipse(x, y + 3, 14, 10);
-            fill(255, 100, 100);
+            ctx.fillStyle = "rgb(255, 100, 100)";
             ellipse(x, y + 1, 7, 5);
-            fill(255, 170, 170);
+            ctx.fillStyle = "rgb(255, 170, 170)";
             ellipse(x - 14, y + 15, 9, 6);
             ellipse(x + 14, y + 15, 9, 6);
         }
 
         function hammer() {
             let tiltOffset = hammerAngle * 0.7;
-            fill(160, 99, 42);
+            ctx.strokeStyle = "transparent";
+            ctx.fillStyle = "rgb(160, 99, 42)";
             rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 26 + tiltOffset, 18, 52, 3);
-            stroke(122, 74, 26);
-            strokeWeight(1); 
+            
+            ctx.strokeStyle = "rgb(122, 74, 26)";
+            ctx.lineWidth = 1; 
             line(mouseX + 18 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 17 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
             line(mouseX + 24 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 25 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
-            noStroke();
-            fill(42, 26, 10, 140);
+            
+            ctx.strokeStyle = "transparent";
+            ctx.fillStyle = "rgba(42, 26, 10, 0.5)";
             rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 42 + tiltOffset, 18, 5, 1);
             rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 56 + tiltOffset, 18, 5, 1);
-            fill(122, 74, 26);
+            ctx.fillStyle = "rgb(122, 74, 26)";
             rect(mouseX + 13 - tiltOffset * 0.3, mouseY + 72 + tiltOffset, 20, 7, 3);
-            fill(85, 85, 96);
+            ctx.fillStyle = "rgb(85, 85, 96)";
             rect(mouseX + 8 - tiltOffset * 0.3, mouseY + 18 + tiltOffset, 30, 8, 2);
-            fill(96, 96, 101);
+            ctx.fillStyle = "rgb(96, 96, 101)";
             rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 20, 4);
-            fill(138, 138, 144);
+            ctx.fillStyle = "rgb(138, 138, 144)";
             rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 5, 4);
-            fill(74, 74, 82);
+            ctx.fillStyle = "rgb(74, 74, 82)";
             rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
             rect(mouseX + 35 - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
-            fill(51, 51, 56);
+            ctx.fillStyle = "rgb(51, 51, 56)";
             ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
             ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
             ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
             ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
-            fill(48, 48, 53);
+            ctx.fillStyle = "rgb(48, 48, 53)";
             rect(mouseX - tiltOffset * 0.3, mouseY + 17 + tiltOffset, 46, 4, 2);
         }
 
         function drawHitEffect(x, y, type) {
-            fill(255, 215, 0);
+            ctx.strokeStyle = "transparent";
+            ctx.fillStyle = "rgb(255, 215, 0)";
             ellipse(x, y, 74, 44);
             ellipse(x - 15, y - 10, 35, 35);
             ellipse(x + 15, y + 10, 35, 35);
-            ellipse(x - 15, y + 10, 35, 3
+            ellipse(x - 15, y + 10, 35, 35);
+            ellipse(x + 15, y - 10, 35, 35);
+            ctx.fillStyle = "rgb(255, 255, 50)";
+            ellipse(x, y, 66, 36);
+            ellipse(x - 13, y - 8, 28, 28);
+            ellipse(x + 13, y + 8, 28, 28);
+            ellipse(x - 13, y + 8, 28, 28);
+            ellipse(x + 13, y - 8, 28, 28);
+            
+            ctx.font = "bold 18px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            let txt = type === 0 ? "POW!" : type === 1 ? "BAM!" : "WHACK!";
+            if (type === 2) ctx.font = "bold 15px sans-serif";
+            
+            ctx.fillStyle = "rgb(150, 0, 0)";
+            ctx.fillText(txt, x + 2, y + 2);
+            ctx.fillStyle = "rgb(255, 0, 0)";
+            ctx.fillText(txt, x, y);
+        }
+
+        // MAIN DRAW LOOP RUNNING AT 60FPS
+        function draw() {
+            ctx.clearRect(0, 0, 400, 400);
+
+            if (gameState === "menu") {
+                ctx.strokeStyle = "transparent";
+                ctx.fillStyle = "rgb(55, 105, 75)"; ctx.fillRect(0, 0, 400, 400);
+                ctx.fillStyle = "rgb(65, 125, 90)"; rect(15, 15, 370, 370, 12);
+                ctx.fillStyle = "rgba(55, 105, 75, 0.3)"; ellipse(60, 80, 120, 60); ellipse(340, 320, 140, 70);
+                
+                drawGrass(40, 60); drawGrass(350, 80); drawGrass(70, 340); drawGrass(330, 350);
+                
+                ctx.font = "bold 38px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "rgb(25, 55, 35)"; ctx.fillText("WHACK-A-MOLE!", 202, 82);
+                ctx.fillStyle = "rgb(255, 220, 90)"; ctx.fillText("WHACK-A-MOLE!", 200, 80);
+                
+                drawHole(120, 180); drawHole(280, 180); drawMole(200, 165);
+                
+                let btnX = 125, btnY = 240, btnW = 150, btnH = 50;
+                let isHovering = (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH);
+                
+                if (isHovering) {
+                    ctx.fillStyle = "rgba(25, 55, 35, 0.5)"; rect(btnX - 4, btnY + 3, btnW + 8, btnH + 4, 10);
+                    ctx.fillStyle = "rgb(255, 110, 110)"; rect(btnX - 2, btnY - 1, btnW + 4, btnH + 2, 10);
+                } else {
+                    ctx.fillStyle = "rgba(25, 55, 35, 0.6)"; rect(btnX - 3, btnY + 4, btnW + 6, btnH + 3, 10);
+                    ctx.fillStyle = "rgb(235, 90, 90)"; rect(btnX, btnY, btnW, btnH, 10);
+                }
+                
+                ctx.fillStyle = "white";
+                ctx.font = isHovering ? "bold 21px sans-serif" : "bold 20px sans-serif";
+                ctx.fillText("START GAME", btnX + btnW / 2, btnY + btnH / 2);
+                
+                ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+                ctx.font = "13px sans-serif";
+                ctx.fillText("Whack the moles before time runs out!", 200, 335);
+            }
+            else if (gameState === "end") {
+                ctx.strokeStyle = "transparent";
+                ctx.fillStyle = "rgb(40, 130, 70)"; ctx.fillRect(0,0,400,400);
+                ctx.fillStyle = "rgba(20, 50, 30, 0.7)"; rect(40, 40, 320, 320, 15);
+                
+                ctx.font = "bold 42px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "rgb(10, 25, 15)"; ctx.fillText("GAME OVER", 202, 92);
+                ctx.fillStyle = "rgb(255, 80, 80)"; ctx.fillText("GAME OVER", 200, 90);
+                
+                ctx.fillStyle = "white"; ctx.font = "20px sans-serif"; ctx.fillText("Moles Whacked: " + score, 200, 160);
+                ctx.fillStyle = "rgb(240, 200, 200)"; ctx.fillText("Moles Missed: " + misses, 200, 200);
+                ctx.fillStyle = "rgb(200, 240, 200)"; ctx.fillText("Total Moles: " + totalMoles, 200, 240);
+                
+                let btnX = 125, btnY = 280, btnW = 150, btnH = 50;
+                let isHovering = (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH);
+                
+                if (isHovering) {
+                    ctx.fillStyle = "rgba(10, 30, 15, 0.5)"; rect(btnX - 2, btnY + 4, btnW + 4, btnH + 2, 8);
+                    ctx.fillStyle = "rgb(255, 215, 0)"; rect(btnX - 4, btnY - 2, btnW + 8, btnH + 4, 8);
+                    ctx.fillStyle = "black";
+                } else {
+                    ctx.fillStyle = "rgba(10, 30, 15, 0.6)"; rect(btnX - 3, btnY + 3, btnW + 6, btnH + 3, 8);
+                    ctx.fillStyle = "rgb(235, 90, 90)"; rect(btnX, btnY, btnW, btnH, 8);
+                    ctx.fillStyle = "white";
+                }
+                ctx.font = "bold 18px sans-serif";
+                ctx.fillText("PLAY AGAIN", btnX + btnW / 2, btnY + btnH / 2);
+            }
+            else if (gameState === "play") {
+                ctx.strokeStyle = "transparent";
+                ctx.fillStyle = "rgb(46, 158, 46)"; ctx.fillRect(0,0,400,400);
+                
+                ctx.fillStyle = "rgba(44, 152, 44, 0.2)"; ctx.fillRect(0, 0, 133, 133); ctx.fillRect(0, 134, 133, 132); ctx.fillRect(0, 267, 133, 133);
+                ctx.fillStyle = "rgba(51, 168, 51, 0.2)"; ctx.fillRect(134, 0, 132, 133); ctx.fillRect(134, 134, 132, 132); ctx.fillRect(134, 267, 132, 133);
+                ctx.fillStyle = "rgba(42, 148, 42, 0.2)"; ctx.fillRect(267, 0, 133, 133); ctx.fillRect(267, 134, 133, 132); ctx.fillRect(267, 267, 133, 133);
+                
+                ctx.fillStyle = "rgba(90, 48, 16, 0.4)";
+                ellipse(80, 122, 96, 50); ellipse(200, 122, 96, 50); ellipse(320, 122, 96, 50);
+                ellipse(80, 232, 96, 50); ellipse(200, 232, 96, 50); ellipse(320, 232, 96, 50);
+                ellipse(80, 342, 96, 50); ellipse(200, 342, 96, 50); ellipse(320, 342, 96, 50);
+                
+                drawGrass(140, 60); drawGrass(260, 70); drawGrass(40, 175); drawGrass(210, 180); drawGrass(360, 170); drawGrass(140, 290); drawGrass(270, 285);
+                
+                spawnSpeed = 60 - (score * 0.2);
+                if (spawnSpeed < 25) { spawnSpeed = 25; }
+                
+                drawHole(80, 120); drawHole(200, 120); drawHole(320, 120);
+                drawHole(80, 230); drawHole(200, 230); drawHole(320, 230);
+                drawHole(80, 340); drawHole(200, 340); drawHole(320, 340);
+                
+                currentMoleAY = currentMoleAY + (moleAY - currentMoleAY) * 0.15;
+                currentMoleBY = currentMoleBY + (moleBY - currentMoleBY) * 0.15;
+                
+                if (hammerResetTimer > 0) hammerResetTimer--;
+                else hammerAngle = 0;
+                
+                gameTimer -= 1.0/60.0;
+                timerA--;
+                if (timerA < 0) {
+                    if (isMoleAAlive) misses++;
+                    isMoleAAlive = true;
+                    totalMoles++;
+                    let pickHoleA = Math.random() * 900;
+                    if (pickHoleA < 100) { moleAX = 80; moleAY = 120; } 
+                    else if (pickHoleA < 200) { moleAX = 200; moleAY = 120; } 
+                    else if (pickHoleA < 300) { moleAX = 320; moleAY = 120; } 
+                    else if (pickHoleA < 400) { moleAX = 80; moleAY = 230; } 
+                    else if (pickHoleA < 500) { moleAX = 200; moleAY = 230; } 
+                    else if (pickHoleA < 600) { moleAX = 320; moleAY = 230; } 
+                    else if (pickHoleA < 700) { moleAX = 80; moleAY = 340; } 
+                    else if (pickHoleA < 800) { moleAX = 200; moleAY = 340; } 
+                    else { moleAX = 320; moleAY = 340; }
+                    currentMoleAY = moleAY + 40;
+                    timerA = spawnSpeed;
+                }
+                
+                if (score >= 3) {
+                    timerB--;
+                    if (timerB < 0) {
+                        if (isMoleBAlive) misses++;
+                        isMoleBAlive = true;
+                        totalMoles++; 
+                        let pickHoleB = Math.random() * 900;
+                        if (pickHoleB < 100) { moleBX = 80; moleBY = 120; } 
+                        else if (pickHoleB < 200) { moleBX = 200; moleBY = 120; } 
+                        else if (pickHoleB < 300) { moleBX = 320; moleBY = 120; } 
+                        else if (pickHoleB < 400) { moleBX = 80; moleBY = 230; } 
+                        else if (pickHoleB < 500) { moleBX = 200; moleBY = 230; } 
+                        else if (pickHoleB < 600) { moleBX = 320; moleBY = 230; } 
+                        else if (pickHoleB < 700) { moleBX = 80; moleBY = 340; } 
+                        else if (pickHoleB < 800) { moleBX = 200; moleBY = 340; } 
+                        else { moleBX = 320; moleBY = 340; }
+                        
+                        if (moleBX === moleAX && moleBY === moleAY && isMoleAAlive) {
+                            moleBX += 120; if (moleBX > 320) moleBX = 80;
+                        }
+                        currentMoleBY = moleBY + 40;
+                        timerB = spawnSpeed + 45;
+                    }
+                }
+                
+                if (isMoleAAlive) drawMole(moleAX, currentMoleAY);
+                else { ctx.fillStyle = "rgb(110, 55, 15)"; ellipse(moleAX, moleAY + 10, 45, 15); }
+                
+                if (isMoleBAlive && score >= 3) drawMole(moleBX, currentMoleBY);
+                else { ctx.fillStyle = "rgb(110, 55, 15)"; ellipse(moleBX, moleBY + 10, 45, 15); }
+                
+                if (effectTimer > 0) {
+                    drawHitEffect(effectX + (Math.random() * 20 - 10), effectY, bubbleType);
+                    effectTimer--;
+                }
+                
+                ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; rect(10, 10, 180, 30, 4);
+                ctx.fillStyle = "white"; ctx.font = "18px sans-serif"; ctx.textAlign = "left";
+                ctx.fillText("Score: " + score, 20, 30);
+                ctx.fillText("Time: " + Math.round(gameTimer), 120, 30);
+                
+                hammer();
+                if (gameTimer <= 0) gameState = "end";
+            }
+            
+            requestAnimationFrame(draw);
+        }
+
+        // LISTENERS
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        window.addEventListener('click', () => {
+            if (gameState === "menu") {
+                if (mouseX > 125 && mouseX < 275 && mouseY > 240 && mouseY < 290) {
+                    gameState = "play"; score = 0; gameTimer = 30; timerA = 60; timerB = 90;
+                    isMoleAAlive = true; isMoleBAlive = false; totalMoles = 0; misses = 0;
+                }
+            }
+            else if (gameState === "play") {
+                hammerAngle = 85;
+                hammerResetTimer = 6;
+                
+                if (isMoleAAlive && mouseX > moleAX - 25 && mouseX < moleAX + 25 && mouseY > currentMoleAY - 25 && mouseY < currentMoleAY + 25) {
+                    isMoleAAlive = false; score++; timerA = 15; effectX = moleAX; effectY = moleAY - 15; effectTimer = 20;
+                    bubbleType = Math.floor(Math.random() * 3);
+                }
+                if (isMoleBAlive && mouseX > moleBX - 25 && mouseX < moleBX + 25 && mouseY > currentMoleBY - 25 && mouseY < currentMoleBY + 25) {
+                    isMoleBAlive = false; score++; timerB = 15; effectX = moleBX; effectY = moleBY - 15; effectTimer = 20;
+                    bubbleType = Math.floor(Math.random() * 3);
+                }
+            }
+            else if (gameState === "end") {
+                if (mouseX > 125 && mouseX < 275 && mouseY > 280 && mouseY < 330) {
+                    gameState = "menu";
+                }
+            }
+        });
+
+        // START ENGINE
+        requestAnimationFrame(draw);
+    </script>
+</body>
+</html>
