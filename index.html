@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Whack-A-Mole Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/processing.js/1.6.6/processing.min.js"></script>
+</head>
+<body style="margin:0; padding:0; background:#b2feff; display:flex; justify-content:center; align-items:center; height:100vh;">
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // Links your script.js file to the graphics library canvas
+        var canvas = document.getElementById("gameCanvas");
+        var sketchProc = function(processingInstance) {
+            with (processingInstance) {
+                size(400, 400);
+                frameRate(60);
+                
+                // Fetch your JavaScript game code
+                fetch('script.js')
+                    .then(response => response.text())
+                    .then(code => {
+                        eval(code);
+                    });
+            }
+        };
+        var processingInstance = new Processing(canvas, sketchProc);
+    </script>
+</body>
+</html>
