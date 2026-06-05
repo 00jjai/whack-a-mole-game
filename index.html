@@ -1,105 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Whack-A-Mole Game</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/processing.js/1.6.6/processing.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #b2feff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+    </style>
 </head>
-<body style="margin:0; padding:0; background:#b2feff; display:flex; justify-content:center; align-items:center; height:100vh;">
+<body>
 
-    <canvas id="gameCanvas"></canvas>
+    <script>
+        // GAME VARIABLES
+        let gameState = "menu";
+        let maxAngle;
 
-    <script type="text/javascript">
-    // This wrapper forces the browser to compile the Processing code cleanly
-    var sketchProc = function(processingInstance) {
-        with (processingInstance) {
-            
-            // 1. SETUP CANVAS SIZE
-            size(400, 400);
-            background(178, 254, 255);
+        let moleAX = 200;
+        let moleAY = 200;
+        let currentMoleAY = 250;
+        let isMoleAAlive = true;
+        let timerA = 60;
 
-            // 2. GAME VARIABLES
-            var gameState = "menu";
-            var maxAngle;
+        let moleBX = 100;
+        let moleBY = 150;
+        let currentMoleBY = 250;
+        let isMoleBAlive = true;
+        let timerB = 90;
 
-            var moleAX = 200;
-            var moleAY = 200;
-            var currentMoleAY = 250;
-            var isMoleAAlive = true;
-            var timerA = 60;
+        let moleSize = 45;
+        let score = 0;
+        let gameTimer = 30; 
+        let spawnSpeed = 60;
+        let hammerAngle = 0;
+        let hammerResetTimer = 0;
+        let effectTimer = 0;
+        let effectX = 0;
+        let effectY = 0;
+        let bubbleType = 0;
+        let totalMoles = 0;
+        let misses = 0;
 
-            var moleBX = 100;
-            var moleBY = 150;
-            var currentMoleBY = 250;
-            var isMoleBAlive = true;
-            var timerB = 90;
+        function setup() {
+            createCanvas(400, 400);
+        }
 
-            var moleSize = 45;
-            var score = 0;
-            var gameTimer = 30; 
-            var spawnSpeed = 60;
-            var hammerAngle = 0;
-            var hammerResetTimer = 0;
-            var effectTimer = 0;
-            var effectX = 0;
-            var effectY = 0;
-            var bubbleType = 0;
-            var totalMoles = 0;
-            var misses = 0;
+        // DRAWING FUNCTIONS
+        function drawGrass(x, y) {
+            stroke(30, 110, 30);
+            strokeWeight(2);
+            line(x, y, x - 4, y - 10);
+            line(x, y, x, y - 14);
+            line(x, y, x + 4, y - 10);
+            noStroke();
+        }
 
-            // 3. DRAWING FUNCTIONS
-            var drawGrass = function(x, y) {
-                stroke(30, 110, 30);
-                strokeWeight(2);
-                line(x, y, x - 4, y - 10);
-                line(x, y, x, y - 14);
-                line(x, y, x + 4, y - 10);
-                noStroke();
-            };
+        function drawHole(cx, cy) {
+            fill(107, 61, 20, 130);
+            ellipse(cx, cy + 2, 92, 48);
+            fill(139, 94, 42);
+            ellipse(cx, cy, 88, 44);
+            fill(74, 42, 10);
+            ellipse(cx, cy, 76, 36);
+            fill(26, 14, 4);
+            ellipse(cx, cy + 1, 66, 28);
+            fill(13, 6, 4);
+            ellipse(cx, cy, 56, 20);
+        }
 
-            var drawHole = function(cx, cy) {
-                fill(107, 61, 20, 130);
-                ellipse(cx, cy + 2, 92, 48);
-                fill(139, 94, 42);
-                ellipse(cx, cy, 88, 44);
-                fill(74, 42, 10);
-                ellipse(cx, cy, 76, 36);
-                fill(26, 14, 4);
-                ellipse(cx, cy + 1, 66, 28);
-                fill(13, 6, 4);
-                ellipse(cx, cy, 56, 20);
-            };
+        function drawMole(x, y) {
+            fill(139, 69, 19);
+            ellipse(x, y, moleSize, moleSize);
+            ellipse(x - 15, y - 15, 12, 12);
+            ellipse(x + 15, y - 15, 12, 12);
+            fill(255, 150, 150);
+            ellipse(x - 15, y - 15, 6, 6);
+            ellipse(x + 15, y - 15, 6, 6);
+            fill(0, 0, 0);
+            ellipse(x - 8, y - 4, 6, 6);
+            ellipse(x + 8, y - 4, 6, 6);
+            fill(255, 255, 255);
+            ellipse(x - 9, y - 5, 2, 2);
+            ellipse(x + 7, y - 5, 2, 2);
+            fill(240, 170, 170);
+            ellipse(x, y + 3, 14, 10);
+            fill(255, 100, 100);
+            ellipse(x, y + 1, 7, 5);
+            fill(255, 170, 170);
+            ellipse(x - 14, y + 15, 9, 6);
+            ellipse(x + 14, y + 15, 9, 6);
+        }
 
-            var drawMole = function(x, y) {
-                fill(139, 69, 19);
-                ellipse(x, y, moleSize, moleSize);
-                ellipse(x - 15, y - 15, 12, 12);
-                ellipse(x + 15, y - 15, 12, 12);
-                fill(255,150,150);
-                ellipse(x - 15, y - 15, 6, 6);
-                ellipse(x + 15, y - 15, 6, 6);
-                fill(0,0,0);
-                ellipse(x - 8, y - 4, 6, 6);
-                ellipse(x + 8, y - 4, 6, 6);
-                fill(255,255,255);
-                ellipse(x - 9, y - 5, 2, 2);
-                ellipse(x + 7, y - 5, 2, 2);
-                fill(240, 170, 170);
-                ellipse(x, y + 3, 14, 10);
-                fill(255, 100, 100);
-                ellipse(x, y + 1, 7, 5);
-                fill(255, 170, 170);
-                ellipse(x - 14, y + 15, 9, 6);
-                ellipse(x + 14, y + 15, 9, 6);
-            };
+        function hammer() {
+            let tiltOffset = hammerAngle * 0.7;
+            fill(160, 99, 42);
+            rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 26 + tiltOffset, 18, 52, 3);
+            stroke(122, 74, 26);
+            strokeWeight(1); 
+            line(mouseX + 18 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 17 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
+            line(mouseX + 24 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 25 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
+            noStroke();
+            fill(42, 26, 10, 140);
+            rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 42 + tiltOffset, 18, 5, 1);
+            rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 56 + tiltOffset, 18, 5, 1);
+            fill(122, 74, 26);
+            rect(mouseX + 13 - tiltOffset * 0.3, mouseY + 72 + tiltOffset, 20, 7, 3);
+            fill(85, 85, 96);
+            rect(mouseX + 8 - tiltOffset * 0.3, mouseY + 18 + tiltOffset, 30, 8, 2);
+            fill(96, 96, 101);
+            rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 20, 4);
+            fill(138, 138, 144);
+            rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 5, 4);
+            fill(74, 74, 82);
+            rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
+            rect(mouseX + 35 - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
+            fill(51, 51, 56);
+            ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
+            ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
+            ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
+            ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
+            fill(48, 48, 53);
+            rect(mouseX - tiltOffset * 0.3, mouseY + 17 + tiltOffset, 46, 4, 2);
+        }
 
-            var hammer = function() {
-                var tiltOffset = hammerAngle * 0.7;
-                fill(160, 99, 42);
-                rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 26 + tiltOffset, 18, 52, 3);
-                stroke(122, 74, 26);
-                strokeWeight(1); // FIXED: Removed textWeight bug
-                line(mouseX + 18 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 17 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
-                line(mouseX + 24 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 25 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
-                noStroke();
-                fill(42, 26, 10, 140);
-                rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 42 +
+        function drawHitEffect(x, y, type) {
+            fill(255, 215, 0);
+            ellipse(x, y, 74, 44);
+            ellipse(x - 15, y - 10, 35, 35);
+            ellipse(x + 15, y + 10, 35, 35);
+            ellipse(x - 15, y + 10, 35, 3
