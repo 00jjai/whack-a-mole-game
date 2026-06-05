@@ -1,0 +1,555 @@
+/* 
+ * Whack-A-Mole Game
+ * Jai Chowdhury
+ * June 5th 2026
+*/
+
+background(178, 254, 255);
+
+// Set the initial game screen state to the menu
+var gameState = "menu";
+var maxAngle;
+
+// Starting coordinates for the first mole (Mole A)
+var moleAX = 200;
+var moleAY = 200;
+
+// Tracks the sliding animation position for Mole A
+var currentMoleAY = 250;
+
+// Tracks if Mole A is currently popped up
+var isMoleAAlive = true;
+
+// Timer for how long Mole A stays up before hiding
+var timerA = 60;
+
+// Starting coordinates for the second mole (Mole B)
+var moleBX = 100;
+var moleBY = 150;
+
+// Tracks the sliding animation position for Mole B
+var currentMoleBY = 250;
+
+// Tracks if Mole B is currently popped up
+var isMoleBAlive = true;
+
+// Timer for how long Mole B stays up before hiding
+var timerB = 90;
+
+// Width and height of the mole characters
+var moleSize = 45;
+
+// Total player score
+var score = 0;
+
+// Total game length set to 30 seconds
+var gameTimer = 30; 
+
+// Base speed for how fast moles pop up and down
+var spawnSpeed = 60;
+
+// Rotation angle for when the hammer hits a mole
+var hammerAngle = 0;
+
+// Keeps the hammer in the tilted position for a few frames
+var hammerResetTimer = 0;
+
+// How long thel effect stays on screen
+var effectTimer = 0;
+
+// X and Y screen positions for the hit visual effect
+var effectX = 0;
+var effectY = 0;
+
+// Chooses which text word  shows up
+var bubbleType = 0;
+
+// Total number of moles that have appeared
+var totalMoles = 0;
+
+// Tracks how many moles got away safely
+var misses = 0;
+
+// Draws a  patch of grass using 3 simple lines
+var drawGrass = function(x, y) {
+    stroke(30, 110, 30);
+    strokeWeight(2);
+    // Draw three angled lines side-by-side to look like a tuft of grass
+    line(x, y, x - 4, y - 10);
+    line(x, y, x, y - 14);
+    line(x, y, x + 4, y - 10);
+    noStroke();
+};
+
+// Draws a layered dirt mole hole with depth shadows
+var drawHole = function(cx, cy) {
+    // Offset the Y value slightly to make a shadow 
+    fill(107, 61, 20, 130);
+    ellipse(cx, cy + 2, 92, 48);
+    fill(139, 94, 42);
+    ellipse(cx, cy, 88, 44);
+    fill(74, 42, 10);
+    ellipse(cx, cy, 76, 36);
+    // Add 1 to the Y value to shift the inner hole  down 
+    fill(26, 14, 4);
+    ellipse(cx, cy + 1, 66, 28);
+    fill(13, 6, 4);
+    ellipse(cx, cy, 56, 20);
+};
+
+// Draws the full mole character face, ears, and feet
+var drawMole = function(x, y) {
+    fill(139, 69, 19);
+    ellipse(x, y, moleSize, moleSize);
+    // Subtract and add 15 to the X and Y paths to position the ears perfectly on the sides
+    ellipse(x - 15, y - 15, 12, 12);
+    ellipse(x + 15, y - 15, 12, 12);
+    fill(255,150,150);
+    ellipse(x - 15, y - 15, 6, 6);
+    ellipse(x + 15, y - 15, 6, 6);
+    // Position eyes slightly offset 
+    fill(0,0,0);
+    ellipse(x - 8, y - 4, 6, 6);
+    ellipse(x + 8, y - 4, 6, 6);
+    // Tiny eye glints
+    fill(255,255,255);
+    ellipse(x - 9, y - 5, 2, 2);
+    ellipse(x + 7, y - 5, 2, 2);
+    // Lower the snout by so it sits under the eyes
+    fill(240, 170, 170);
+    ellipse(x, y + 3, 14, 10);
+    // Put the nose down from snout 
+    fill(255, 100, 100);
+    ellipse(x, y + 1, 7, 5);
+    // Lower the feet  so they look like they are popping out of the ground
+    fill(255, 170, 170);
+    ellipse(x - 14, y + 15, 9, 6);
+    ellipse(x + 14, y + 15, 9, 6);
+};
+
+// Draws the custom hammer at the mouse cursor position
+var hammer = function() {
+    //  control the smooth swinging movement
+    var tiltOffset = hammerAngle * 0.7;
+    // Add math shifts to mouseX and mouseY so the hammer handle moves fluidly as it swings
+    fill(160, 99, 42);
+    rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 26 + tiltOffset, 18, 52, 3);
+    stroke(122, 74, 26);
+    strokeWeight(1);
+    line(mouseX + 18 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 17 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
+    line(mouseX + 24 - tiltOffset * 0.3, mouseY + 29 + tiltOffset, mouseX + 25 - tiltOffset * 0.3, mouseY + 75 + tiltOffset);
+    noStroke();
+    fill(42, 26, 10, 140);
+    rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 42 + tiltOffset, 18, 5, 1);
+    rect(mouseX + 14 - tiltOffset * 0.3, mouseY + 56 + tiltOffset, 18, 5, 1);
+    fill(122, 74, 26);
+    rect(mouseX + 13 - tiltOffset * 0.3, mouseY + 72 + tiltOffset, 20, 7, 3);
+    fill(85, 85, 96);
+    rect(mouseX + 8 - tiltOffset * 0.3, mouseY + 18 + tiltOffset, 30, 8, 2);
+    fill(96, 96, 101);
+    rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 20, 4);
+    fill(138, 138, 144);
+    rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 46, 5, 4);
+    fill(74, 74, 82);
+    rect(mouseX - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
+    rect(mouseX + 35 - tiltOffset * 0.3, mouseY + tiltOffset, 11, 20, 3);
+    fill(51, 51, 56);
+    ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
+    ellipse(mouseX + 5 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
+    ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 7 + tiltOffset, 5, 5);
+    ellipse(mouseX + 41 - tiltOffset * 0.3, mouseY + 15 + tiltOffset, 5, 5);
+    fill(48, 48, 53);
+    rect(mouseX - tiltOffset * 0.3, mouseY + 17 + tiltOffset, 46, 4, 2);
+};
+
+// Draws a random hit effect bubble
+var drawHitEffect = function(x, y, type) {
+    fill(255,215,0);
+    ellipse(x, y, 74, 44);
+    ellipse(x - 15, y - 10, 35, 35);
+    ellipse(x + 15, y + 10, 35, 35);
+    ellipse(x - 15, y + 10, 35, 35);
+    ellipse(x + 15, y - 10, 35, 35);
+    fill(255,255,50);
+    ellipse(x, y, 66, 36);
+    ellipse(x - 13, y - 8, 28, 28);
+    ellipse(x + 13, y + 8, 28, 28);
+    ellipse(x - 13, y + 8, 28, 28);
+    ellipse(x + 13, y - 8, 28, 28);
+    fill(150, 0, 0);
+    textSize(18);
+    
+    // Check if the randomized bubble type is exactly 0
+    if (type === 0) {
+        // Shift text by 23 and 8 center it 
+        text("POW!", x - 23, y + 8);
+        fill(255,0,0);
+        text("POW!", x - 25, y + 6);
+    } 
+    // Check if the randomized bubble type is exactly 1 instead
+    else if (type === 1) {
+        text("BAM!", x - 21, y + 8);
+        fill(255,0,0);
+        text("BAM!", x - 25, y + 6);
+    } 
+    // If it isn't 0 or 1, drop back to drawing this last text word option
+    else {
+        textSize(15);
+        text("WHACK!", x - 27, y + 7);
+        fill(255,0,0);
+        text("WHACK!", x - 29, y + 5);
+    }
+};
+
+// Handles clicking buttons and whacking active moles
+mouseClicked = function() {
+    // Check if player is currently sitting on the main menu screen
+    if (gameState === "menu") {
+        // Look if the click fell inside the boundaries of the Start button box
+        if (mouseX > 125 && mouseX < 275 && mouseY > 240 && mouseY < 290) {
+            gameState = "play";
+            score = 0;
+            gameTimer = 30;
+            timerA = 60;
+            timerB = 90;
+            isMoleAAlive = true;
+            isMoleBAlive = false;
+            totalMoles = 0;
+            misses = 0;
+        }
+    }
+    // Check for mole hits if the game is currently in active play mode
+    else if (gameState === "play") {
+        maxAngle = 85;
+        hammerAngle = maxAngle;
+        hammerResetTimer = 6;
+        
+        // Check if Mole A is currently popped up above its hole
+        if (isMoleAAlive) {
+            // Check if the mouse cursor X is within 25 pixels of Mole A's center position
+            if (mouseX > moleAX - 25 && mouseX < moleAX + 25) {
+                // Check if the mouse cursor Y is within 25 pixels of Mole A's current height
+                if (mouseY > currentMoleAY - 25 && mouseY < currentMoleAY + 25) {
+                    isMoleAAlive = false;
+                    // Add 1 to the current score total
+                    score = score + 1;
+                    timerA = 15;
+                    effectX = moleAX;
+                    // Put the pop-up text bubble exactly 15 pixels above the hole center
+                    effectY = moleAY - 15;
+                    effectTimer = 20;
+                    
+                    var r = random(0, 3);
+                    // Check if our random decimal number landed below 1
+                    if (r < 1) { bubbleType = 0; }
+                    // Check if our random decimal number landed below 2 instead
+                    else if (r < 2) { bubbleType = 1; }
+                    // If it is between 2 and 3, pick the final text option
+                    else { bubbleType = 2; }
+                }
+            }
+        }
+        // Check if Mole B is currently popped up above its hole
+        if (isMoleBAlive) {
+            // Check if the mouse cursor X is within 25 pixels of Mole B's center position
+            if (mouseX > moleBX - 25 && mouseX < moleBX + 25) {
+                // Check if the mouse cursor Y is within 25 pixels of Mole B's current height
+                if (mouseY > currentMoleBY - 25 && mouseY < currentMoleBY + 25) {
+                    isMoleBAlive = false;
+                    // Add 1 to the current score total
+                    score = score + 1;
+                    timerB = 15;
+                    effectX = moleBX;
+                    effectY = moleBY - 15;
+                    effectTimer = 20;
+                    
+                    var r = random(0, 3);
+                    // Check if our random decimal number landed below 1
+                    if (r < 1) { bubbleType = 0; }
+                    // Check if our random decimal number landed below 2 instead
+                    else if (r < 2) { bubbleType = 1; }
+                    // If it is between 2 and 3, pick the final text option
+                    else { bubbleType = 2; }
+                }
+            }
+        }
+    }
+    // Check if player is looking at the final game over screen
+    else if (gameState === "end") {
+        // Look if the click fell inside the boundaries of the Try Again button box
+        if (mouseX > 125 && mouseX < 275 && mouseY > 280 && mouseY < 330) {
+            gameState = "menu";
+        }
+    }
+};
+
+// Continuous update loop that runs automatically
+draw = function() {
+    // Check if we should render the menu graphics
+    if (gameState === "menu") {
+        background(55, 105, 75);
+        fill(65, 125, 90);
+        rect(15, 15, 370, 370, 12);
+        
+        fill(55, 105, 75, 80);
+        ellipse(60, 80, 120, 60);
+        ellipse(340, 320, 140, 70);
+        
+        drawGrass(40, 60);
+        drawGrass(350, 80);
+        drawGrass(70, 340);
+        drawGrass(330, 350);
+        
+        textAlign(CENTER, CENTER);
+        fill(25, 55, 35);
+        textSize(38);
+        // Shift text right by 2 and down by 2 to draw a clean drop shadow layer
+        text("WHACK-A-MOLE!", 202, 82);
+        
+        fill(255, 220, 90);
+        text("WHACK-A-MOLE!", 200, 80);
+        
+        drawHole(120, 180);
+        drawHole(280, 180);
+        drawMole(200, 165);
+        
+        var btnX = 125;
+        var btnY = 240;
+        var btnW = 150;
+        var btnH = 50;
+        var txtSize = 20;
+        
+        var isHovering = (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH);
+        // Check if the user's mouse cursor is hovering over the menu button area
+        if (isHovering) {
+            // Expand size values slightly to smoothly swell the button box outwards
+            btnX = btnX - 4; btnY = btnY - 2; btnW = btnW + 8; btnH = btnH + 4; txtSize = 21;
+            fill(25, 55, 35, 120);
+            rect(btnX - 2, btnY + 5, btnW + 4, btnH + 2, 10);
+            fill(255, 110, 110);
+        } 
+        else {
+            fill(25, 55, 35, 150);
+            rect(btnX - 3, btnY + 4, btnW + 6, btnH + 3, 10);
+            fill(235, 90, 90);
+        }
+        
+        rect(btnX, btnY, btnW, btnH, 10);
+        fill(255, 255, 255);
+        textSize(txtSize);
+        // Divide the width and height by 2 to position the text exactly in the button center
+        text("START GAME", btnX + btnW / 2, btnY + btnH / 2);
+        
+        fill(255, 255, 255, 160);
+        textSize(13);
+        text("Whack the moles before time runs out!", 200, 335);
+        textAlign(LEFT, BASELINE);
+    }
+    // Check if we should render the final scoreboard screen instead
+    else if (gameState === "end") {
+        background(40, 130, 70);
+        fill(20, 50, 30, 180);
+        rect(40, 40, 320, 320, 15);
+        
+        textAlign(CENTER, CENTER);
+        fill(10, 25, 15);
+        textSize(42);
+        // Shift text down and right by 2 pixels to make a drop shadow behind the header
+        text("GAME OVER", 202, 92);
+        
+        fill(255, 80, 80);
+        text("GAME OVER", 200, 90);
+        
+        fill(255, 255, 255);
+        textSize(20);
+        text("Moles Whacked: " + score, 200, 160);
+        fill(240, 200, 200);
+        text("Moles Missed: " + misses, 200, 200);
+        fill(200, 240, 200);
+        text("Total Moles: " + totalMoles, 200, 240);
+        
+        var btnX = 125;
+        var btnY = 280;
+        var btnW = 150;
+        var btnH = 50;
+        var btnTxtSize = 18;
+        
+        var isHovering = (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH);
+        // Check if the user's mouse cursor is hovering over the restart button area
+        if (isHovering) {
+            // Apply scale adjustments to widen the restart button shape slightly
+            btnX = btnX - 4; btnY = btnY - 2; btnW = btnW + 8; btnH = btnH + 4; btnTxtSize = 19;
+            fill(10, 30, 15, 120);
+            rect(btnX - 2, btnY + 4, btnW + 4, btnH + 2, 8);
+            fill(255, 215, 0);
+        } 
+        else {
+            fill(10, 30, 15, 150);
+            rect(btnX - 3, btnY + 3, btnW + 6, btnH + 3, 8);
+            fill(235, 90, 90);
+        }
+        
+        rect(btnX, btnY, btnW, btnH, 8);
+        fill(255, 255, 255);
+        // Check if the mouse is hovering to flip the button text color to dark grey
+        if (isHovering) { fill(30, 30, 30); }
+        textSize(btnTxtSize);
+        text("PLAY AGAIN", btnX + btnW / 2, btnY + btnH / 2);
+        textAlign(LEFT, BASELINE);
+    }
+    // Check if the game state matches active play mode
+    else if (gameState === "play") {
+        background(46, 158, 46);
+        fill(44, 152, 44, 60); rect(0, 0, 133, 133);
+        fill(51, 168, 51, 50); rect(134, 0, 132, 133);
+        fill(42, 148, 42, 60); rect(267, 0, 133, 133);
+        fill(44, 152, 44, 50); rect(0, 134, 133, 132);
+        fill(51, 168, 51, 40); rect(134, 134, 132, 132);
+        fill(42, 148, 42, 50); rect(267, 134, 133, 132);
+        fill(44, 152, 44, 60); rect(0, 267, 133, 133);
+        fill(51, 168, 51, 50); rect(134, 267, 132, 133);
+        fill(42, 148, 42, 60); rect(267, 267, 133, 133);
+        
+        fill(90, 48, 16, 100);
+        ellipse(80, 122, 96, 50); ellipse(200, 122, 96, 50); ellipse(320, 122, 96, 50);
+        ellipse(80, 232, 96, 50); ellipse(200, 232, 96, 50); ellipse(320, 232, 96, 50);
+        ellipse(80, 342, 96, 50); ellipse(200, 342, 96, 50); ellipse(320, 342, 96, 50);
+        
+        drawGrass(140, 60);
+        drawGrass(260, 70);
+        drawGrass(40, 175);
+        drawGrass(210, 180);
+        drawGrass(360, 170);
+        drawGrass(140, 290);
+        drawGrass(270, 285);
+        
+        // Make the game pop up faster by subtracting 0.2 frames for every point earned
+        spawnSpeed = 60 - (score * 0.2);
+        // Check if speed has gotten too fast, locking it so it never goes under 25
+        if (spawnSpeed < 25) { spawnSpeed = 25; }
+        
+        drawHole(80, 120); drawHole(200, 120); drawHole(320, 120);
+        drawHole(80, 230); drawHole(200, 230); drawHole(320, 230);
+        drawHole(80, 340); drawHole(200, 340); drawHole(320, 340);
+        
+        // Add a fraction of the distance gap to current positions to slide them smoothly
+        currentMoleAY = currentMoleAY + (moleAY - currentMoleAY) * 0.15;
+        currentMoleBY = currentMoleBY + (moleBY - currentMoleBY) * 0.15;
+        
+        // Check if the hammer is currently down on impact
+        if (hammerResetTimer > 0) {
+            // Subtract 1 from the reset frame counter every loop
+            hammerResetTimer = hammerResetTimer - 1;
+        } else {
+            hammerAngle = 0;
+        }
+        
+        // Subtractfrom the game timer every frame to countdown smoothly
+        gameTimer = gameTimer - 1/60;
+        
+        // Subtract 1 frame from Mole A's visual timer pool
+        timerA = timerA - 1;
+        // Check if Mole A's up-time timer has fully run down to zero
+        if (timerA < 0) {
+            // Check if it was still active to count it as a missed escape point
+            if (isMoleAAlive) { misses = misses + 1; }
+            isMoleAAlive = true;
+            // Add 1 to track total moles spawned in the round
+            totalMoles = totalMoles + 1;
+            
+            var pickHoleA = random(0, 900);
+            // Place Mole A into a random circle
+            if (pickHoleA < 100) { moleAX = 80; moleAY = 120; } 
+            else if (pickHoleA < 200) { moleAX = 200; moleAY = 120; } 
+            else if (pickHoleA < 300) { moleAX = 320; moleAY = 120; } 
+            else if (pickHoleA < 400) { moleAX = 80; moleAY = 230; } 
+            else if (pickHoleA < 500) { moleAX = 200; moleAY = 230; } 
+            else if (pickHoleA < 600) { moleAX = 320; moleAY = 230; } 
+            else if (pickHoleA < 700) { moleAX = 80; moleAY = 340; } 
+            else if (pickHoleA < 800) { moleAX = 200; moleAY = 340; } 
+            else { moleAX = 320; moleAY = 340; }
+            
+            // Add 40 to hide the mole completely below ground
+            currentMoleAY = moleAY + 40;
+            timerA = spawnSpeed;
+        }
+       
+        // Check if player has earned a score of 3 or more to unlock the second mole
+        if (score >= 3) {
+            // Subtract 1 frame from Mole B's timer
+            timerB = timerB - 1;
+            // Check if Mole B's timer is at zero
+            if (timerB < 0) {
+                // Check if it was still active to count it as a missed escape point
+                if (isMoleBAlive) { misses = misses + 1; }
+                isMoleBAlive = true;
+                // Add 1 to track total moles spawned in the round
+                totalMoles = totalMoles + 1; 
+                
+                var pickHoleB = random(0, 900);
+                // Randomly selects holes for mole B
+                if (pickHoleB < 100) { moleBX = 80; moleBY = 120; } 
+                else if (pickHoleB < 200) { moleBX = 200; moleBY = 120; } 
+                else if (pickHoleB < 300) { moleBX = 320; moleBY = 120; } 
+                else if (pickHoleB < 400) { moleBX = 80; moleBY = 230; } 
+                else if (pickHoleB < 500) { moleBX = 200; moleBY = 230; } 
+                else if (pickHoleB < 600) { moleBX = 320; moleBY = 230; } 
+                else if (pickHoleB < 700) { moleBX = 80; moleBY = 340; } 
+                else if (pickHoleB < 800) { moleBX = 200; moleBY = 340; } 
+                else { moleBX = 320; moleBY = 340; }
+               
+                // Check if both Mole positions accidentally matched coordinates at the same time
+                if (moleBX === moleAX && moleBY === moleAY && isMoleAAlive) {
+                    // Add 120 to shift Mole B one column over so they don't overlap
+                    moleBX = moleBX + 120;
+                    // Check if the shift pushed Mole B past the right edge, looping it back left
+                    if (moleBX > 320) { moleBX = 80; }
+                }
+                // Add 40 to drop Mole B down out of sight before it slides up
+                currentMoleBY = moleBY + 40;
+                // Add 45 frames to the animation
+                timerB = spawnSpeed + 45;
+            }
+        }
+        
+        // Check if Mole A is currently unwhacked
+        if (isMoleAAlive) {
+            drawMole(moleAX, currentMoleAY);
+        } else {
+            fill(110, 55, 15);
+            // Add 10 to draw a flat dirt patch over the empty hole 
+            ellipse(moleAX, moleAY + 10, 45, 15);
+        }
+       
+        // Check if Mole B is active and the score unlock c
+        if (isMoleBAlive && score >= 3) {
+            drawMole(moleBX, currentMoleBY);
+        } else {
+            fill(110, 55, 15);
+            // Add 10 to draw a flat dirt patch exactly over the empty hole mouth
+            ellipse(moleBX, moleBY + 10, 45, 15);
+        }
+        
+        // Check if the hit text effect pop-up timer is running
+        if (effectTimer > 0) {
+            // Include a small random shake factor between -10 and 10 to make it pop dynamically
+            drawHitEffect(effectX + random(-10,10), effectY, bubbleType);
+            // Subtract 1 from the effect visibility life pool
+            effectTimer = effectTimer - 1;
+        }
+       
+        fill(0, 0, 0, 80);
+        rect(10, 10, 180, 30);
+        fill(255,255,255);
+        textSize(18);
+        text("Score: " + score, 20, 32);
+        text("Time: " + round(gameTimer), 120, 32);
+       
+        hammer();
+        
+        // Check if the countdown match timer has completely emptied out
+        if (gameTimer <= 0) {
+            gameState = "end";
+        }
+    }
+};
